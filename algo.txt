@@ -1,0 +1,58 @@
+schedule
+
+- run synchronization once, then exit V
+- allows to be scheduled to run once a day at 2am (outside of the scope) V
+
+schedule-2 (FUTURE, evaluate if actually needed)
+
+- set up file system listener, and set dirty flag if there was a change
+- run synchronization once, then schedule itself to run again in 1 minute
+- if dirty, re-run synchronization, otherwise nothing
+- the flag should be reset right before sync, protected by a mutex or something
+- if I do this, I also need to cache folder metadata by etag to avoid re-transferring from S3 every minute
+
+backup
+
+- list all files in a given folder V
+- for each file return file path, size and date modified V
+- calculate file hash V
+    - if already has hash, re-use V
+- get the full list of file path, hash V
+- retrieve metadata file from the cloud (file path, hash) V
+    - if not there, make a new one V
+    - if 404, return an empty file V
+- reconcile
+    - upload every blob that is not in the cloud to the cloud V
+    - ignore files that have errors V
+    - if file is empty, ignore upload V
+    - if upload fails, report error v
+    - if there is no error in local list, remove every blob that is no longer referenced by a local list
+- re-create and upload new metadata file (in progress...)
+    - if file has no error, write it's metadata V
+    - if file has error, the metadata for this file should be taken from the cloud version as it was before V
+- key handling V
+    - encrypt the file key V
+    - store next to nonce V
+
+
+upload
+
+- stream to s3 V
+- stream encrypted V
+- save metadata next to the object V
+- somehow confirm that it was saved V
+
+download
+
+- get metadata
+- for each file path
+- download the blob
+
+future
+
+- all .ignore file
+- the paths that are found in .ignore should be ignored
+
+bugs and tests
+
+- store file size in the folder metadata
