@@ -3,9 +3,36 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 )
 
+const (
+	ModeUndefined = iota
+	ModeBackup
+	ModeRestore
+)
+
+func readArgs() int {
+	args := os.Args[1:]
+	if len(args) == 0 {
+		return ModeBackup
+	}
+
+	if args[0] == "backup" {
+		return ModeBackup
+	}
+	if args[0] == "restore" {
+		return ModeRestore
+	}
+
+	log.Fatalln("Wrong arguments")
+	return ModeUndefined
+}
+
 func main() {
+	// detect mode
+	mode := readArgs()
+
 	// load .env
 	LoadDotEnv()
 
@@ -23,49 +50,37 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// backup
-	fmt.Println("Starting backup")
-	objects, err := Backup(folder, bucket, deviceId, masterKey)
-	if err != nil {
-		fmt.Println("Backup failed")
-		log.Fatal(err)
-	}
-	fmt.Println("Backup completed")
-
-	// report
-	fmt.Println("Objects failed to backup:")
-	for _, obj := range objects {
-		if obj.Error != nil {
-			fmt.Printf("'%s': %v\n", obj.Path, obj.Error)
+	if mode == ModeBackup {
+		// backup
+		fmt.Println("Starting backup")
+		objects, err := Backup(folder, bucket, deviceId, masterKey)
+		if err != nil {
+			fmt.Println("Backup failed")
+			log.Fatal(err)
 		}
-	}
-}
+		fmt.Println("Backup completed")
 
-/*
-func main() {
-	// 32-byte symmetric key
-	key := []byte("this-is-a-secret-32-byte-key-!!!")
+		// report
+		fmt.Println("Objects failed to backup:")
+		for _, obj := range objects {
+			if obj.Error != nil {
+				fmt.Printf("'%s': %v\n", obj.Path, obj.Error)
+			}
+		}
 
-	input, err := os.Open("example.pdf")
-	output, err := os.Create("encrypted.dat")
-
-	nonce, err := Encrypt(input, output, key)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Encryption error: %v\n", err)
 		return
 	}
-	output.Close()
 
-	_ = os.WriteFile("nonce.dat", nonce, 0644)
+	if mode == ModeRestore {
+		fmt.Println("Starting restore")
+		err := Restore(folder, bucket, deviceId, masterKey)
+		if err != nil {
+			fmt.Println("Restore failed")
+			log.Fatal(err)
+		}
+		fmt.Println("Restore completed")
+		return
+	}
 
-	savedNonce, _ := os.ReadFile("nonce.dat")
-
-	cipherFile, _ := os.Open("encrypted.dat")
-	defer cipherFile.Close()
-
-	decFile, _ := os.Create("restored.pdf")
-	defer decFile.Close()
-
-	_ = Decrypt(cipherFile, decFile, key, savedNonce)
+	log.Fatalln("Unexpected mode")
 }
-*/

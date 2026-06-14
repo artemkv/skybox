@@ -9,6 +9,7 @@ import (
 )
 
 const DefaultFilePermissions = 0644
+const DefaultFolderPermissions = 0755
 
 // Size and ModTime can be null, in which case Error should be present
 type LocalFileInfo struct {

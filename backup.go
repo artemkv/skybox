@@ -230,7 +230,7 @@ func uploadObjectEncrypted(
 	fileEncryptionKey := GenerateNewEncryptionKey()
 	fileNonce := GenerateNewNonce()
 
-	// Encode the file encryption key with master key
+	// Encrypt the file encryption key with master key
 	fileEncryptionKeyNonce := GenerateNewNonce()
 	var fileEncryptionKeyEncrypted bytes.Buffer
 	err := Encrypt(
@@ -270,6 +270,108 @@ func uploadObjectEncrypted(
 
 	// stream to s3 with metadata
 	err = UploadFile(bucket, objectKey, pipeReader, meta)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func downloadObjectDecrypted(
+	bucket string,
+	folder string,
+	obj *CloudObjectInfo,
+	objectKey string,
+	masterKey []byte) error {
+	// get full path
+	fullPath := filepath.Join(folder, obj.Path)
+
+	// make folders
+	err := os.MkdirAll(filepath.Dir(fullPath), DefaultFolderPermissions)
+	if err != nil {
+		return err
+	}
+
+	// create temp file
+	tempFile, err := os.Create(fullPath + ".encrypted")
+	if err != nil {
+		return err
+	}
+	defer tempFile.Close()
+
+	// stream encrypted content
+	err = DownloadFile(bucket, objectKey, tempFile)
+	if err != nil {
+		return err
+	}
+	tempFile.Close()
+
+	// read meta
+	meta, err := GetFileMetadata(bucket, objectKey)
+	if err != nil {
+		return err
+	}
+	fileNonceBase64, ok := meta[FileNonceMetaKey]
+	if !ok {
+		return fmt.Errorf("file nonce not found in file metadata")
+	}
+	fileEncryptionKeyEncryptedBase64, ok := meta[FileEncryptionKeyEncryptedMetaKey]
+	if !ok {
+		return fmt.Errorf("file encryption key not found in file metadata")
+	}
+	fileEncryptionKeyNonceBase64, ok := meta[FileEncryptionKeyNonceMetaKey]
+	if !ok {
+		return fmt.Errorf("file encryption key nonce not found in file metadata")
+	}
+
+	// decode keys
+	fileNonce, err := base64.StdEncoding.DecodeString(fileNonceBase64)
+	if err != nil {
+		return err
+	}
+	fileEncryptionKeyEncrypted, err := base64.StdEncoding.DecodeString(fileEncryptionKeyEncryptedBase64)
+	if err != nil {
+		return err
+	}
+	fileEncryptionKeyNonce, err := base64.StdEncoding.DecodeString(fileEncryptionKeyNonceBase64)
+	if err != nil {
+		return err
+	}
+
+	// Decrypt the file encryption key with master key
+	var fileEncryptionKey bytes.Buffer
+	err = Decrypt(
+		bytes.NewReader(fileEncryptionKeyEncrypted),
+		&fileEncryptionKey,
+		masterKey,
+		fileEncryptionKeyNonce)
+	if err != nil {
+		return err
+	}
+
+	// open the temp file for reading
+	input, err := os.Open(fullPath + ".encrypted")
+	if err != nil {
+		return err
+	}
+	defer input.Close()
+
+	// create actual file
+	output, err := os.Create(fullPath)
+	if err != nil {
+		return err
+	}
+	defer output.Close()
+
+	// decrypt
+	err = Decrypt(input, output, fileEncryptionKey.Bytes(), fileNonce)
+	if err != nil {
+		return err
+	}
+
+	// remove temp file
+	input.Close()
+	err = os.Remove(fullPath + ".encrypted")
 	if err != nil {
 		return err
 	}
@@ -382,4 +484,28 @@ func Backup(folder string, bucket string, deviceId string, masterKey []byte) ([]
 	fmt.Println("Saving folder metadata done")
 
 	return localObjects, nil
+}
+
+func Restore(folder string, bucket string, deviceId string, masterKey []byte) error {
+	// get folder metadata
+	fmt.Println("Retrieving cloud folder metadata")
+	folderMetaKey := makeFolderMetaKey(deviceId)
+	folderMeta, err := downloadFolderMeta(bucket, folderMetaKey)
+	if err != nil {
+		return err
+	}
+	cloudObjects := toCloudObjectList(folderMeta.Items)
+	fmt.Println("Retrieving cloud folder metadata done")
+
+	fmt.Println("Downloading objects")
+	for _, obj := range cloudObjects {
+		fmt.Printf("Downloading content for: '%s'\n", obj.Path)
+		objectKey := makeObjectKey(deviceId, obj.Hash)
+		err = downloadObjectDecrypted(bucket, folder, obj, objectKey, masterKey)
+		if err != nil {
+			fmt.Printf("Failed to download the object: %v\n", err)
+		}
+	}
+	fmt.Println("Downloading done")
+	return nil
 }

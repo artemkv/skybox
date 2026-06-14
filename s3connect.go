@@ -61,6 +61,37 @@ func UploadFile(bucket string, objectKey string, reader io.Reader, meta map[stri
 	return nil
 }
 
+func DownloadFile(bucket string, objectKey string, writer io.WriterAt) error {
+	// Setup client
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		return err
+	}
+	s3client := s3.NewFromConfig(cfg)
+
+	// Setup downloader
+	manager := transfermanager.New(s3client, func(u *transfermanager.Options) {
+		u.PartSizeBytes = PART_SIZE
+	})
+
+	// Initialize input
+	input := &transfermanager.DownloadObjectInput{
+		Bucket:   aws.String(bucket),
+		Key:      aws.String(objectKey),
+		WriterAt: writer,
+	}
+
+	// Download file
+	_, err = manager.DownloadObject(context.TODO(), input)
+
+	// Handle errors
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // If no file found, returns nil
 func GetFileContent(bucket string, objectKey string) ([]byte, error) {
 	// Setup client
@@ -96,6 +127,28 @@ func GetFileContent(bucket string, objectKey string) ([]byte, error) {
 	}
 
 	return bytes, nil
+}
+
+func GetFileMetadata(bucket string, objectKey string) (map[string]string, error) {
+	// Setup client
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		return nil, err
+	}
+	s3client := s3.NewFromConfig(cfg)
+
+	// Initialize input
+	input := &s3.HeadObjectInput{
+		Bucket: &bucket,
+		Key:    &objectKey,
+	}
+
+	// Fetch the metadata
+	output, err := s3client.HeadObject(context.TODO(), input)
+	if err != nil {
+		return nil, err
+	}
+	return output.Metadata, nil
 }
 
 func DeleteFile(bucket string, objectKey string) error {
