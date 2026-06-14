@@ -26,7 +26,8 @@ backup
     - ignore files that have errors V
     - if file is empty, ignore upload V
     - if upload fails, report error v
-    - if there is no error in local list, remove every blob that is no longer referenced by a local list
+    - if there is no error in local list, remove every blob that is no longer referenced by a local list V
+    - blobs that we failed to delete in S3 should maybe stay in metadata
 - re-create and upload new metadata file (in progress...)
     - if file has no error, write it's metadata V
     - if file has error, the metadata for this file should be taken from the cloud version as it was before V
@@ -52,6 +53,7 @@ future
 
 - all .ignore file
 - the paths that are found in .ignore should be ignored
+- purge orphans in S3
 
 bugs and tests
 
