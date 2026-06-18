@@ -11,7 +11,7 @@ schedule-2 (FUTURE, evaluate if actually needed)
 - the flag should be reset right before sync, protected by a mutex or something
 - if I do this, I also need to cache folder metadata by etag to avoid re-transferring from S3 every minute
 
-backup
+backup V1.0
 
 - list all files in a given folder V
 - for each file return file path, size and date modified V
@@ -21,14 +21,14 @@ backup
 - retrieve metadata file from the cloud (file path, hash) V
     - if not there, make a new one V
     - if 404, return an empty file V
-- reconcile
+- reconcile V
     - upload every blob that is not in the cloud to the cloud V
     - ignore files that have errors V
     - if file is empty, ignore upload V
-    - if upload fails, report error v
+    - if upload fails, report error V
     - if there is no error in local list, remove every blob that is no longer referenced by a local list V
-    - blobs that we failed to delete in S3 should maybe stay in metadata
-- re-create and upload new metadata file (in progress...)
+    - blobs that we failed to delete in S3 should maybe stay in metadata V
+- re-create and upload new metadata file (in progress...) V
     - if file has no error, write it's metadata V
     - if file has error, the metadata for this file should be taken from the cloud version as it was before V
 - key handling V
@@ -45,16 +45,15 @@ upload
 
 download
 
-- get metadata
-- for each file path
-- download the blob
+- get metadata V
+- for each file path V
+- download the blob V
 
 future
 
 - all .ignore file
 - the paths that are found in .ignore should be ignored
-- purge orphans in S3
+- purge orphans in S3 as a separate command
+- store metadata encrypted too
 
 bugs and tests
-
-- store file size in the folder metadata

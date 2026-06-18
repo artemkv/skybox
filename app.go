@@ -55,7 +55,7 @@ func main() {
 	if mode == ModeBackup {
 		// backup
 		fmt.Println("Starting backup")
-		objects, err := Backup(folder, bucket, deviceId, masterKey)
+		local, cloud, err := Backup(folder, bucket, deviceId, masterKey)
 		if err != nil {
 			fmt.Println("Backup failed")
 			log.Fatal(err)
@@ -63,8 +63,14 @@ func main() {
 		fmt.Println("Backup completed")
 
 		// report
-		fmt.Println("Objects failed to backup:")
-		for _, obj := range objects {
+		fmt.Println("Objects failed to backup to cloud:")
+		for _, obj := range local {
+			if obj.Error != nil {
+				fmt.Printf("'%s': %v\n", obj.Path, obj.Error)
+			}
+		}
+		fmt.Println("Objects failed to remove in cloud:")
+		for _, obj := range cloud {
 			if obj.Error != nil {
 				fmt.Printf("'%s': %v\n", obj.Path, obj.Error)
 			}

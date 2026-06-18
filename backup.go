@@ -21,9 +21,10 @@ type LocalObjectInfo struct {
 }
 
 type CloudObjectInfo struct {
-	Path string
-	Size int64
-	Hash string
+	Path  string
+	Size  int64
+	Hash  string
+	Error error
 }
 
 func computeFileHash(folder string, file *LocalFileInfo, hashCache *HashCache, hashCacheKey string) (string, error) {
@@ -191,7 +192,7 @@ func toFolderMeta(data []byte) (*FolderMeta, error) {
 	return &meta, nil
 }
 
-func toFolderMetaItems(local []*LocalObjectInfo, prevFolderItems []*FolderMetaItem) []*FolderMetaItem {
+func toFolderMetaItems(local []*LocalObjectInfo, cloud []*CloudObjectInfo, prevFolderItems []*FolderMetaItem) []*FolderMetaItem {
 	prevLookup := make(map[string]*FolderMetaItem)
 	for _, item := range prevFolderItems {
 		prevLookup[item.Path] = item
@@ -199,14 +200,27 @@ func toFolderMetaItems(local []*LocalObjectInfo, prevFolderItems []*FolderMetaIt
 
 	var items []*FolderMetaItem = make([]*FolderMetaItem, 0, len(local))
 	for _, obj := range local {
-		if obj.Error != nil {
+		if obj.Error == nil {
+			// no error == in sync
+			itemInfo := &FolderMetaItem{
+				Path: obj.Path,
+				Size: obj.Size,
+				Hash: obj.Hash,
+			}
+			items = append(items, itemInfo)
+		} else {
+			// if error - keep the old record
 			prev, ok := prevLookup[obj.Path]
 			if ok {
 				items = append(items, prev)
 			} else {
 				// Ignore
 			}
-		} else {
+		}
+	}
+	for _, obj := range cloud {
+		if obj.Error != nil {
+			// error == not in sync, keep the old record
 			itemInfo := &FolderMetaItem{
 				Path: obj.Path,
 				Size: obj.Size,
@@ -415,7 +429,7 @@ func downloadFolderMeta(bucket string, folderMetaKey string) (*FolderMeta, error
 	return folderMeta, nil
 }
 
-func Backup(folder string, bucket string, deviceId string, masterKey []byte) ([]*LocalObjectInfo, error) {
+func Backup(folder string, bucket string, deviceId string, masterKey []byte) ([]*LocalObjectInfo, []*CloudObjectInfo, error) {
 	// get cached hashes
 	hashCache := RestoreHashes()
 
@@ -423,7 +437,7 @@ func Backup(folder string, bucket string, deviceId string, masterKey []byte) ([]
 	fmt.Println("Loading local folder")
 	files, err := ListFolder(folder)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	localObjects, updHashes := toLocalObjectList(folder, files, hashCache)
 	err = StoreHashes(updHashes)
@@ -437,7 +451,7 @@ func Backup(folder string, bucket string, deviceId string, masterKey []byte) ([]
 	folderMetaKey := makeFolderMetaKey(deviceId)
 	folderMeta, err := downloadFolderMeta(bucket, folderMetaKey)
 	if err != nil {
-		return localObjects, err
+		return nil, nil, err
 	}
 	cloudObjects := toCloudObjectList(folderMeta.Items)
 	fmt.Println("Retrieving cloud folder metadata done")
@@ -452,11 +466,13 @@ func Backup(folder string, bucket string, deviceId string, masterKey []byte) ([]
 		err = uploadObjectEncrypted(bucket, folder, obj, objectKey, masterKey)
 		if err != nil {
 			obj.Error = fmt.Errorf("failed to upload: %v", err)
+			fmt.Printf("ERROR Uploading content for: '%s'\n", obj.Path)
 		}
 	}
 	fmt.Println("Uploading missing objects done")
 
 	// remove orphans
+	// (only in case there has not been any errors)
 	fmt.Println("Removing orphans")
 	if !hasErrors(localObjects) {
 		orphans := getOrphanedObjects(localObjects, cloudObjects)
@@ -465,7 +481,8 @@ func Backup(folder string, bucket string, deviceId string, masterKey []byte) ([]
 			objectKey := makeObjectKey(deviceId, obj.Hash)
 			err = DeleteFile(bucket, objectKey)
 			if err != nil {
-				fmt.Printf("Failed to delete the object: %v\n", err)
+				obj.Error = fmt.Errorf("failed to delete the object: %v", err)
+				fmt.Printf("ERROR Removing: '%s'\n", obj.Path)
 			}
 		}
 	}
@@ -475,15 +492,15 @@ func Backup(folder string, bucket string, deviceId string, masterKey []byte) ([]
 	// (only for files that have no errors)
 	fmt.Println("Saving folder metadata")
 	newFolderMeta := &FolderMeta{
-		Items: toFolderMetaItems(localObjects, folderMeta.Items),
+		Items: toFolderMetaItems(localObjects, cloudObjects, folderMeta.Items),
 	}
 	err = uploadFolderMeta(bucket, folderMetaKey, newFolderMeta)
 	if err != nil {
-		return localObjects, err
+		return nil, nil, err
 	}
 	fmt.Println("Saving folder metadata done")
 
-	return localObjects, nil
+	return localObjects, cloudObjects, nil
 }
 
 func Restore(folder string, bucket string, deviceId string, masterKey []byte) error {
