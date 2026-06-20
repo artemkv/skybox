@@ -1,9 +1,0 @@
-code examples:
-
-- to json and from json
-- to lookup
-- pipe
-- write to file, read from file
-- string to reader
-- byte array to reader
-- byte array to string
