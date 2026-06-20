@@ -514,6 +514,7 @@ func Restore(folder string, bucket string, deviceId string, masterKey []byte) er
 	cloudObjects := toCloudObjectList(folderMeta.Items)
 	fmt.Println("Retrieving cloud folder metadata done")
 
+	// download files
 	fmt.Println("Downloading objects")
 	for _, obj := range cloudObjects {
 		fmt.Printf("Downloading content for: '%s'\n", obj.Path)

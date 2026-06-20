@@ -6,14 +6,14 @@ import (
 	"os"
 )
 
-// TODO: I need proper modes with arguments
 const (
 	ModeUndefined = iota
 	ModeBackup
 	ModeRestore
 )
 
-// TODO: make this actually usable
+// If in the future I need more args, I might parse this using some lib
+// TODO: make it print usage
 func readArgs() int {
 	args := os.Args[1:]
 	if len(args) == 0 {
