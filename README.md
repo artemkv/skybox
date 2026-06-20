@@ -8,7 +8,7 @@ Essentially, it is a backup to a personal S3 bucket.
 
 - The main premise of such systems, namely mirroring files across devices, is an overkill;
 - Running these tools continuously eats into resources;
-- The free space is limited, subscriptions have weird structure, not control over the cost;
+- The free space is limited, subscriptions have weird structure, no control over the cost;
 - You are at the mercy of the vendor, and useful features sometimes are hidden behind paywall;
 - I don't trust anyone with my files. I don't want vendors to scan my files.
 
