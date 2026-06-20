@@ -12,6 +12,14 @@ Essentially, it is a backup to a personal S3 bucket.
 - You are at the mercy of the vendor, and useful features sometimes are hidden behind paywall;
 - I don't trust anyone with my files. I don't want vendors to scan my files.
 
+## Why not existing solutions (e.g. Rclone)
+
+- These tools eventually evolve to be too general, they have too many features and connect to too many providers;
+- This raises the complexity. In my experience, making a good specific tool is order of magnitude easier and faster than making a good generic tool;
+- There is more things to learn, more effort to set up, and it will probably never do exactly what I want;
+- This essentially means I would not have time to keep up with the changes, if I ever want to fork and adapt those tools;
+- Having my own simple tool that solves my specific use-cases well gives me all the control I need to implement anything I want.
+
 ## My personal main use cases
 
 - Primary (home) laptop folder continuous backup;
@@ -36,6 +44,16 @@ Essentially, it is a backup to a personal S3 bucket.
 - Metadata (for now) is stored as plain text (JSON), includes file paths (relative to folder), size and hash (blake3);
 - Files with the same content are stored in S3 once (de-duped by hash);
 - Error reading local file never affects files stored in S3. In other words, I never delete the file from S3 if I am not sure. This means orphans may be present temporarily, until the errors are resolved.
+
+## Algorithm (high level)
+
+- Read local folder
+- Get folder metadata from the cloud
+- Compare and find missing objects
+- Upload missing objects to the cloud
+- Compare and find orphans
+- Delete orphans from the cloud
+- Re-create folder metadata and upload to the cloud
 
 ## Config
 
