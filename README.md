@@ -14,7 +14,7 @@ Essentially, it is a backup to a personal S3 bucket.
 
 ## Why not existing solutions (e.g. Rclone)
 
-- These tools eventually evolve to be too general, they have too many features and connect to too many providers;
+- These tools eventually evolve to be too generic, they have too many features and connect to too many providers;
 - This raises the complexity. In my experience, making a good specific tool is order of magnitude easier and faster than making a good generic tool;
 - There is more things to learn, more effort to set up, and it will probably never do exactly what I want;
 - This essentially means I would not have time to keep up with the changes, if I ever want to fork and adapt those tools;
