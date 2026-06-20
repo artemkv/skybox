@@ -55,5 +55,6 @@ future
 - the paths that are found in .ignore should be ignored
 - purge orphans in S3 as a separate command
 - store metadata encrypted too
+- think about some protection mechanism to avoid removing all the files from the cloud by mistake
 
 bugs and tests
